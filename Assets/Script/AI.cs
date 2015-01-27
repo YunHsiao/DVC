@@ -4,9 +4,9 @@ using System.Collections.Generic;
 
 public class AI : MonoBehaviour {
 
-	public DaVinci game;
-	CardPool[] role;
-	CardEnv[] pool;
+	public DaVinciS game;
+	CardPoolS[] role;
+	CardEnvS[] pool;
 	List<int> known;
 	int i, o;
 
@@ -20,7 +20,7 @@ public class AI : MonoBehaviour {
 
 	public IEnumerator move() {
 		int cnt = 0;
-		while (true) {
+		while (game.isPlaying()) {
 			if (!game.inGame(i)) {
 				takeTurn();
 				if (!game.inGame(i)) {
@@ -31,8 +31,10 @@ public class AI : MonoBehaviour {
 				if (cnt >= role.Length-1) break;
 			}
 			bool isWhite = decideColor(i,o);
-			role[i].draw(pool[isWhite?0:1].getRandom());
-			DaVinci.info.text = "轮到" + role[i].name + "猜牌";
+			if (pool[isWhite?0:1].Count() == 0) isWhite = !isWhite;
+			if (pool[isWhite?0:1].Count() != 0)
+				role[i].draw(pool[isWhite?0:1].getRandom());
+			DaVinciS.info.text = "轮到" + role[i].name + "猜牌";
 			yield return new WaitForSeconds(1f);
 			int p = decidePlayer(i, o, isWhite) ? 0 : o, 
 				cindex = decideTarget(p, isWhite);
@@ -41,11 +43,11 @@ public class AI : MonoBehaviour {
 				p = decidePlayer(i, o, isWhite) ? 0 : o;
 				cindex = decideTarget(p, isWhite);
 			}
-			Card c = role[p].getCard(cindex);
-			DaVinci.setKeyCard(c);
+			CardS c = role[p].getCard(cindex);
+			DaVinciS.setKeyCard(c);
 			int gs = decideGuess(p, cindex, isWhite);
 			c.setI(gs);
-			DaVinci.info.text = role[i].name + "目标" + role[p].name + "，猜测值：" + gs;
+			DaVinciS.info.text = role[i].name + "目标" + role[p].name + "，猜测值：" + gs;
 			yield return new WaitForSeconds(2f);
 			if (!game.judge(role[i], true)) {
 				takeTurn();

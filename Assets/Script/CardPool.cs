@@ -8,11 +8,13 @@ public class CardPool : MonoBehaviour {
 	Card temp;
 	CardComparer comparer;
 	public float max_range;
+	public bool visible;
 
 	// Use this for initialization
 	void Start () {
 		cards = new List<Card>();
 		comparer = new CardComparer();
+		visible = true;
 	}
 	
 	// Update is called once per frame
@@ -28,7 +30,6 @@ public class CardPool : MonoBehaviour {
 		card.default_x = transform.position.x;
 		card.y = transform.position.y;
 		card.default_y = transform.position.y;
-		card.getCV().flush();
 		for (int i = 0; i < cards.Count; i++) {
 			cards[i].position = i;
 			/*cards[i].SetLayer(-i);
@@ -45,8 +46,7 @@ public class CardPool : MonoBehaviour {
 		for (int i = 0; i < cards.Count; i++) {
 			cards[i].position = i;
 			//if (transform.position.x > 0) cards[i].SetLayer(i);
-			cards[i].SetLayer(i);
-			cards[i].getCV().flush();
+			cards[i].SetZ(i,true);
 			/*Vector3 p = cards[i].transform.GetChild(0).transform.position;
 			cards[i].transform.GetChild(0).transform.position = 
 				new Vector3(p.x, p.y, -i-0.5f);/**/
@@ -63,7 +63,6 @@ public class CardPool : MonoBehaviour {
 		if (card == null) return;
 		temp = card;
 		card.player = this;
-		card.getCV().flush();
 		card.default_x = transform.position.x;
 		card.y = transform.position.y;
 		card.default_y = transform.position.y;
@@ -97,11 +96,16 @@ public class CardPool : MonoBehaviour {
 		return c;
 	}
 
+	public int getCount() {
+		return cards.Count;
+	}
+
 	public List<Card> getCards() {
 		return cards;
 	}
 
 	public void deselectAll () {
+		if (cards == null) return;
 		for (int i = 0; i < cards.Count; i++) {
 			cards[i].deselect();
 		}
@@ -223,5 +227,13 @@ public class CardPool : MonoBehaviour {
 		if (temp != null)
 			return temp.getValue();
 		return -1;
+	}
+
+	public void flush(bool visible) {
+		this.visible = visible;
+		foreach (Card c in cards) {
+			c.getCV().flush(visible);
+		}
+		if (temp != null) temp.getCV().flush(visible);
 	}
 }

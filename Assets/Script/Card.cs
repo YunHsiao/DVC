@@ -12,7 +12,7 @@ public class Card : MonoBehaviour {
 	CardValue cv;
 	Renderer rdr;
 	Vector3 po, sc;
-	public float x, y, scale = 0f;
+	public float x, y, z, scale = 0f;
 	public float default_y = 0f, default_x = 0f, defalut_z = 0f;
 	public CardPool player;
 	public int position = 0;	//Position in Player's Hand
@@ -23,6 +23,7 @@ public class Card : MonoBehaviour {
 		visible = false;
 		x = transform.position.x;
 		y = transform.position.y;
+		z = transform.position.z;
 		po = new Vector3(0, 0, transform.position.z);
 		sc = new Vector3(0, 0, 1);
 		cv = GetComponentInChildren<CardValue>();
@@ -33,11 +34,9 @@ public class Card : MonoBehaviour {
 	void Update () {
 		if (transform.position.x.ToString("0.00") != x.ToString("0.00")
 		    || transform.position.y.ToString("0.00") != y.ToString("0.00")) {
-			//Debug.Log("Lerp: " + transform.position.x.ToString("0.00") 
-			          //+ "->" + x.ToString("0.00"));
 			speed = 0.1f;
 			if (isDraging) speed = 1f;
-			po.x=x;po.y=y;po.z=transform.position.z;
+			po.x=x;po.y=y;po.z=z;
 			transform.position = Vector3.Lerp(transform.position, 
 				po, speed);
 		}
@@ -71,7 +70,7 @@ public class Card : MonoBehaviour {
 
 	public IEnumerator MouseEvent() {
 		if (player == null) yield break;
-		Collider2D[] col;
+		Collider2D[] col = {};
 		while(Input.GetMouseButton(0)) {
 			col = Physics2D.OverlapPointAll(Camera.main.ScreenToWorldPoint(Input.mousePosition));
 			if(col.Length > 0 && col[0].name == name) {
@@ -83,16 +82,12 @@ public class Card : MonoBehaviour {
 		}
 		col = Physics2D.OverlapPointAll(Camera.main.ScreenToWorldPoint(Input.mousePosition));
 		if(col.Length > 0 && col[0].name == name) {
-			if (player.name == "player") {
-				DaVinci.info.text = name;
-			} else {
-				if (visible) DaVinci.info.text = name;
-				else {
-					i += 1;
-					if (i == 14) i = 0;
-					DaVinci.info.text = "目标" + player.name + "，猜测值：" + i;
-					DaVinci.setKeyCard(this);
-				}
+			if (visible || DaVinci.getPlaying()) DaVinci.info.text = name;
+			else {
+				i += 1;
+				if (i == 14) i = 0;
+				DaVinci.info.text = "目标" + player.name + "，猜测值：" + i;
+				DaVinci.setKeyCard(this);
 			}
 		}
 	}
@@ -102,7 +97,7 @@ public class Card : MonoBehaviour {
 		y = default_y + 1 * player.transform.localScale.x;
 		SetZ(-9f, false);
 		scale = player.transform.localScale.x + 0.1f;
-		cv.flush();
+		cv.flush(false);
 	}
 	
 	public void deselect() {
@@ -110,7 +105,7 @@ public class Card : MonoBehaviour {
 		y = default_y;
 		SetZ(defalut_z, false);
 		scale = player.transform.localScale.x;
-		cv.flush();
+		cv.flush(false);
 	}
 	
 	public void SetPosition() {
@@ -129,14 +124,10 @@ public class Card : MonoBehaviour {
 			player.max_range / num_cards);
 		this.x = default_x + position * spacing - (num_cards - 1) * spacing / 2.0f;
 	}
-	
-	public void SetLayer(float layer) {
-		transform.position = new Vector3(transform.position.x, transform.position.y, layer);
-		defalut_z = layer;
-	}
 
 	public void SetZ(float z, bool changeDefault) {
-		transform.position = new Vector3(transform.position.x, transform.position.y, z);
+		//transform.position = new Vector3(transform.position.x, transform.position.y, z);
+		this.z = z;
 		if (changeDefault) defalut_z = z;
 	}
 
@@ -146,7 +137,7 @@ public class Card : MonoBehaviour {
 
 	public void setVisible(bool visible) {
 		this.visible = visible;
-		cv.flush();
+		cv.flush(false);
 	}
 	
 	public void flip() {
@@ -171,6 +162,11 @@ public class Card : MonoBehaviour {
 
 	public CardValue getCV() {
 		return cv;
+	}
+
+	public bool Equals(Card c) {
+		if (!(c.getColor() ^ color) && c.getValue() == value) return true;
+		return false;
 	}
 }
 

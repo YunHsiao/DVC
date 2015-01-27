@@ -4,10 +4,18 @@ using System.Collections;
 public class CardValue : MonoBehaviour {
 
 	Card parent;
+	SpriteRenderer sr;
+	Color vc, pc;
+	Vector3 v;
 
 	// Use this for initialization
 	void Start () {
 		parent = transform.parent.gameObject.GetComponent<Card>();
+		vc = renderer.material.color;
+		pc = parent.renderer.material.color;
+		v = new Vector3(transform.position.x, 
+		                transform.position.y,  parent.transform.position.z - 0.5f);
+		sr = parent.GetComponent<SpriteRenderer>();
 	}
 	
 	// Update is called once per frame
@@ -15,31 +23,39 @@ public class CardValue : MonoBehaviour {
 	}
 
 	public void flush() {
-		if (parent.player!=null && parent.player.name == "player" && !parent.getVisible()) {
+		/*if (parent.player!=null && parent.player.name == "player" && !parent.getVisible()) {
 			setTranslucent();
 			transform.position = new Vector3(transform.position.x, 
 				transform.position.y, parent.transform.position.z - 0.5f);
 			return;
-		}
-		setVisible(parent.getVisible());
-		transform.position = new Vector3(transform.position.x, 
-			transform.position.y, parent.transform.position.z - 0.5f);
+		}/**/
+		v.x = transform.position.x;
+		v.y = transform.position.y;
+		v.z = parent.transform.position.z - 0.5f;
+		transform.position = v;
+	}
+
+	public void flush(bool visible) {
+		setVisible(visible?true:parent.getVisible());
+		flush();
 	}
 
 	void setTranslucent() {
-		Color c = renderer.material.color;
-		renderer.material.color = new Color(c.r, c.g, c.b, 0.9f);
-		c = parent.renderer.material.color;
-		parent.renderer.material.color = new Color(c.r, c.g, c.b, 0.6f);
+		vc.a = 0.9f;
+		renderer.material.color = vc;
+		pc.a = 0.6f;
+		parent.renderer.material.color = pc;
 	}
 
 	void setVisible(bool visible) {
-		Color vc = renderer.material.color, pc = parent.renderer.material.color;
 		if (visible) {
-			renderer.material.color = new Color(vc.r, vc.g, vc.b, 1f);
-			parent.renderer.material.color = new Color(pc.r, pc.g, pc.b, 1f);
+			vc.a = 1f;
+			renderer.material.color = vc;
+			sr.sprite = parent.color?DaVinci.WH:DaVinci.BH;
 		} else {
-			renderer.material.color = new Color(vc.r, vc.g, vc.b, 0f);
+			vc.a = 0f;
+			renderer.material.color = vc;
+			sr.sprite = parent.color?DaVinci.WT:DaVinci.BT;
 		}
 	}
 }

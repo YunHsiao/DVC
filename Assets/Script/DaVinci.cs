@@ -1,88 +1,202 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Net.Sockets;
+using System.Net;
 using System.Collections.Generic;
 
 public class DaVinci : MonoBehaviour {
 
+	public Sprite[] ht;
 	public CardPool[] players;
 	public CardEnv[] pool;
 	public static Card keyCard;
-	public AI ai;
-	public GUIText tip;
-	public static GUIText info;
-	bool waiting;
+	public GUIText tip, tName;
+	public static GUIText info; 
+	public static Sprite WH, WT, BH, BT;
+	public static bool tempDrawed;
+	public AudioClip win, lose, sensor, pivot, draw;
+	private AudioSource sc = null;
+	string ip;
+	int port = 25002;
+	static bool playing, gameStarted;
+	List<int> op;
+	Card cTemp;
+	int num, cnt, current;
 
 	// Use this for initialization
 	void Start () {
 		info = tip;
+		WH = ht[0];
+		WT = ht[1];
+		BH = ht[2];
+		BT = ht[3];
+		sc = gameObject.AddComponent<AudioSource>();
+		sc.clip = sensor;
+		StartCoroutine(DVC());
+	}
+
+	IEnumerator DVC() {
+		yield return StartCoroutine(connect());
 		StartCoroutine(deal());
-		StartCoroutine(BackListen());
+	}
+
+	IEnumerator connect() {
+		op = new List<int>();
+		ip = getIP();
+		string tip = ip.Remove(ip.LastIndexOf('.')+1);
+		int local = int.Parse(ip.Substring(ip.LastIndexOf('.')+1, ip.Length-ip.LastIndexOf('.')-1));
+		if ((Application.platform == RuntimePlatform.Android && local == 1) || 
+		    Application.platform == RuntimePlatform.WindowsEditor) {
+			serverInit();
+		} else {
+			DaVinci.info.text = ip + ": 连接中";
+			if (Application.platform == RuntimePlatform.Android) connect(tip+1);
+			else { connect(ip); }
+			/*while(true) {
+				if (Network.peerType == NetworkPeerType.Client) {
+					break;
+				}
+				yield return null;
+			}/**/
+		}/**
+		bool connected = false;
+		for (int i = 1; i < 256; i++) {
+			if (i == local) continue;
+			connect("127.0.0.1");
+			if (Network.peerType == NetworkPeerType.Client) {
+				DaVinci.info.text = ip + ": Connected to " + tip+i + " as client";
+				connected = true;
+				break;
+			}
+			Network.Disconnect();
+			DaVinci.info.text = ip + ": Connection to " + tip+i + " aborted";
+		}
+		if (!connected) {
+			serverInit();
+			DaVinci.info.text = ip + ": Local server initialized";
+		}/**
+		HostData[] data = MasterServer.PollHostList();
+		if (data.Length > 0) {
+			Network.Connect(data[0]);
+		} else {
+			serverInit();
+			DaVinci.info.text = ip + ": Local server initialized";
+		}/**/
+		while(true) {
+			if (gameStarted) yield break;
+			if (Network.peerType == NetworkPeerType.Client) {
+				DaVinci.info.text = "等待服主开始游戏(目前" + cnt + "位玩家已连接)";
+			} else if (Network.peerType == NetworkPeerType.Server) {
+				if (Network.connections.Length > 0) {
+					sendLength();
+					DaVinci.info.text = ip + ": 等待玩家(目前" + (Network.connections.Length+1) + "位玩家已连接) 点击上方按钮开始";
+				} else DaVinci.info.text = ip + ": 等待玩家(目前" + (Network.connections.Length+1) + "位玩家已连接)";
+			}
+			yield return null;
+		}
 	}
 
 	IEnumerator deal() {
+		yield return new WaitForSeconds(0.5f);
 		DaVinci.info.text = "发牌...";
-		for (int i = 0; i < 4; i++) {/**/
-			for (int j = 0; j < players.Length; j++) {
-				yield return new WaitForSeconds(0.03f);
-				players[j].add(pool[Random.Range(0,2)%2==0?0:1].getRandom());
-			}/*
-			players[0].add(pool[i%2==0?0:1].getRandom());
-			players[1].add(pool[i<2?0:1].getRandom());
-			players[2].add(pool[i>1?0:1].getRandom());/**/
+		if (Network.peerType == NetworkPeerType.Server) {
+			for (int j = 0; j <= Network.connections.Length; j++) {
+				for (int i = 0; i < 4; i++) {
+					yield return new WaitForSeconds(0.03f);				
+					int c = Random.Range(0,2)%2==0?0:1, v = pool[c].getRandomNum();
+					networkView.RPC("RDraw", RPCMode.All, j, c, v);
+				}
+			}
+		} else {
+			yield return StartCoroutine(waitForDealing());
 		}
 		yield return new WaitForSeconds(0.5f);
 		DaVinci.info.text = "整牌...";
 		players[0].sort();
-		players[1].sort();
-		players[2].sort();
 		yield return new WaitForSeconds(1f);
-		waiting = true;
+		if (Network.peerType == NetworkPeerType.Server) 
+			networkView.RPC("CurrentTurn", RPCMode.All, 0);
 		while (isPlaying()) {
-			if (pool[0].Count()==0 && pool[1].Count()==0) 
-				DaVinci.info.text = "轮到玩家猜牌（已无新牌可取）";
-			else DaVinci.info.text = "轮到玩家猜牌";
-			while (waiting) yield return null;
-			yield return StartCoroutine(ai.move());
-			//while (!waiting) yield return new WaitForFixedUpdate();
+			if (current == num) {
+				if (pool[0].Count()==0 && pool[1].Count()==0) 
+					DaVinci.info.text = "轮到玩家"+current+"猜牌（已无新牌可取）";
+				else DaVinci.info.text = "轮到玩家"+current+"猜牌";
+				playing = true;
+				while (playing) {
+					if (!isPlaying()) break;
+					yield return null;
+				}
+			} else {
+				DaVinci.info.text = "等待玩家"+current+"猜牌";
+				playing = false;
+				while (current != num) {
+					if (!isPlaying()) break;
+					yield return null;
+				}
+			}
 		}
-		DaVinci.info.text = "游戏结束！";
 		StartCoroutine(gameOver());
+	}
+	
+	IEnumerator Sensor() {
+		if (Application.platform == RuntimePlatform.Android) {
+			bool isUpright;
+			/**/
+			while (true) {
+				isUpright = Mathf.Abs(Input.acceleration.z) < 0.5;
+				if (isUpright ^ players[0].visible) {
+					if (isUpright) sc.PlayOneShot(sensor);
+					flush(isUpright);
+				}
+				yield return null;
+			}
+			/**
+			AndroidJavaClass jc = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
+			AndroidJavaObject jo = jc.GetStatic<AndroidJavaObject>("currentActivity");
+			while (true) {
+				isUpright = jo.Call<bool>("isUpright");
+				if (isUpright ^ players[0].visible) flush(isUpright);
+				yield return null;
+			}/**/
+		} else {
+			bool isUpright = false;
+			while (true) {
+				isUpright = Input.GetKey(KeyCode.F1);
+				if (isUpright ^ players[0].visible) {
+					if (isUpright) sc.PlayOneShot(sensor);
+					flush(isUpright);
+				}
+				yield return null;
+			}
+		}
 	}
 
 	public void turn() {
-		waiting = !waiting;
+		networkView.RPC("CurrentTurn", RPCMode.All, current>=cnt-1?0:current+1);
 	}
 	
 	// Update is called once per frame
 	void Update () {
-		if (waiting && Input.GetMouseButtonDown(0)) {
-			Collider2D[] col = Physics2D.OverlapPointAll(Camera.main.ScreenToWorldPoint(Input.mousePosition));
+		if (Input.GetMouseButtonDown(0)) {
+			Collider2D[] col = {};
+			col = Physics2D.OverlapPointAll(Camera.main.ScreenToWorldPoint(Input.mousePosition));
 			if(col.Length > 0) {
-				if (col[0].gameObject.transform.GetChild(0).name == "value") {//GetComponent<Card>() != null) {
+				if (col[0].gameObject.transform.GetChild(0).name == "value") {
 					deselectAll();
 					StartCoroutine(cardMouseEvent());
-				} else if (col[0].gameObject.name.Contains("pivot")) {//GetComponent<CardEnv>() != null) {
+				} else if ((playing ^ isTempDrawed()) && col[0].gameObject.name.Contains("pivot")) {
 					StartCoroutine(envMouseEvent());
 				}
 			} else {
 				deselectAll();
 			}
-		}/**/
-	}
-
-	IEnumerator BackListen() {
-		while (true) {
-			if (//Application.platform == RuntimePlatform.Android &&
-			    (Input.GetKeyDown(KeyCode.Escape))) {
-				Application.Quit();	
-			}
-			yield return new WaitForSeconds(1);
 		}
+		if (Input.GetKeyDown(KeyCode.Escape)) { StartCoroutine(gameOver(false)); Application.LoadLevel(0); }
 	}
 
 	IEnumerator cardMouseEvent() {
 		List<string> names = new List<string>();
-		Collider2D[] col;
+		Collider2D[] col = {};
 		while (Input.GetMouseButton(0)) {
 			col = Physics2D.OverlapPointAll(Camera.main.ScreenToWorldPoint(Input.mousePosition));
 			if(col.Length > 0) {
@@ -101,7 +215,7 @@ public class DaVinci : MonoBehaviour {
 
 	IEnumerator envMouseEvent() {
 		List<string> names = new List<string>();
-		Collider2D[] col;
+		Collider2D[] col = {};
 		while (Input.GetMouseButton(0)) {
 			col = Physics2D.OverlapPointAll(Camera.main.ScreenToWorldPoint(Input.mousePosition));
 			if(col.Length > 0) {
@@ -117,38 +231,116 @@ public class DaVinci : MonoBehaviour {
 			yield return new WaitForFixedUpdate();
 		}
 	}
+
+	IEnumerator startMouseEvent() {
+		Collider2D[] col = {};
+		while(true) {
+			if (Input.GetMouseButton(0)) {
+				col = Physics2D.OverlapPointAll(Camera.main.ScreenToWorldPoint(Input.mousePosition));
+				if(col.Length > 0) {
+					bool isEnv = col[0].gameObject.name.Contains("pivot");
+					if (isEnv && Network.connections.Length > 0) {
+						networkView.RPC("StartGame", RPCMode.All);
+						yield break;
+					}
+				}
+			}
+			yield return null;
+		}
+	}
+
+	IEnumerator waitForDealing() {
+		while (true) {
+			if (players[0].getCount() >= 4) yield break;
+			yield return null;
+		}
+	}
+
+	public string getIP() {
+		IPHostEntry iep = Dns.GetHostEntry(Dns.GetHostName());
+		IPAddress ip = iep.AddressList[0];
+		return ip.ToString();
+	}
+
+	void OnPlayerConnected(NetworkPlayer p) {
+		networkView.RPC("ClientInit", p, Network.connections.Length);
+		networkView.RPC("PlayersCnt", RPCMode.All, Network.connections.Length+1);
+	}
+
+	void OnDisconnectedFromServer(NetworkDisconnection info) {
+		StartCoroutine(gameOver(true));
+	}
+
+	void OnPlayerDisconnected(NetworkPlayer p) {
+		networkView.RPC("PlayersCnt", RPCMode.All, Network.connections.Length+1);
+	}
+		
+	NetworkConnectionError connect(string ip) {
+		if (isClient()) {
+
+			return new NetworkConnectionError();
+		}
+		return Network.Connect(ip,port);
+	}
+
+	void serverInit() {
+		StartCoroutine(startMouseEvent());
+		num = 0;
+		tName.text = "玩家" + num;
+		if (isServer()) return;
+		Network.InitializeServer(3, port, false);
+		//MasterServer.RegisterHost("TheDavinciCode", ip);
+	}
+
+	bool isServer() {
+		return Network.peerType == NetworkPeerType.Server;
+	}
+
+	bool isClient() {
+		return Network.peerType == NetworkPeerType.Client;
+	}
+
+	void sendLength() {
+		/*foreach (NetworkPlayer p in Network.connections) 
+			networkView.RPC("ClientInit", p, Network.connections.Length);/**/
+		networkView.RPC("PlayersCnt", RPCMode.All, Network.connections.Length+1);
+	}
+
+	void nextTurn() {
+		int t = current+1, flag = 0;
+		while (flag == 0) {
+			if (t >= 0 && t <= Network.connections.Length) {
+				if (!op.Contains(current+1)) {
+					networkView.RPC("CurrentTurn", RPCMode.All, t);
+					flag = 1;
+				}
+				else t++;
+			} else t = 0;
+		}
+	}
 	
 	public bool inGame(int p) {
 		return players[p].hasPrivate();
 	}
 
+
+	public void checkInGame() {
+		if (!inGame(0)) networkView.RPC("PlayerOut", RPCMode.All, num);
+	}
+
 	public bool isPlaying() {
-		int cnt = 0;
-		foreach (CardPool p in players) {
-			if (p.hasPrivate()) cnt++;
-		}
-		if (cnt > 1) return true;
-		return false;
+		return op.Count < cnt-1;
 	}
 
 	public int getWinner() {
-		for (int i = 0; i < players.Length; i++) {
-			if (players[i].hasPrivate()) return i;
-		}
-		return -1;
+		if (isPlaying()) return -1;	// Not Over Yet
+		for (int i = 0; i < cnt; i++) if (!op.Contains(i)) return i;
+		return -2; // Game Overload Error
 	}
 
-	public void deselectAll() {
-		for (int i = 0; i < players.Length; i++)
-			players[i].deselectAll();
-	}
-	
 	public void guessSucceed() {
 		keyCard.setVisible(true);
-	}
-
-	public void guessFail(CardPool player) {
-		player.insertTemp(true);
+		checkInGame();
 	}
 
 	public void nextGuess(CardPool player, bool isWhite) {
@@ -158,37 +350,26 @@ public class DaVinci : MonoBehaviour {
 		player.add(pool[isWhite?0:1].getRandom());
 	}
 
-	public void endGuess(CardPool player) {
-		player.insertTemp(false);
-	}
-
-	public bool judge(CardPool player, bool keepGuessing) {
-		deselectAll();
-		if (keyCard.correct()) {
-			DaVinci.info.text = player.name + "猜测正确";
+	public bool judge(bool keepGuessing) {
+		networkView.RPC("deselectAll", RPCMode.All);
+		bool correct = keyCard.correct();
+		networkView.RPC("setText", RPCMode.All, "玩家" + current + "猜测错误");
+		if (correct) {
+			networkView.RPC("setText", RPCMode.All, "玩家" + current + "猜测正确");
 			guessSucceed();
-			if (keepGuessing) {
-				Card tc = player.removeTemp();
-				if (tc == null) return true;
-				if (tc.getColor())
-					pool[0].add(tc);
-				else 
-					pool[1].add(tc);
-			} else {
-				endGuess(player);
-			}
-			return true;
-		} else {
-			DaVinci.info.text = player.name + "猜测错误";
-			guessFail(player);
 		}
-		return false;
+		networkView.RPC("RRestore", RPCMode.All);
+		if (correct && keepGuessing) networkView.RPC("RRemoveTemp", RPCMode.Others);
+		else networkView.RPC("endGuess", RPCMode.Others, correct);
+		return correct;
 	}
 
 	public IEnumerator gameOver() {
 		int winner = getWinner();
-		if (winner == 0) DaVinci.info.text = "玩家获得胜利！";
-		else DaVinci.info.text = players[winner].name + "获得胜利！";
+		if (winner == num) sc.PlayOneShot(win);
+		else sc.PlayOneShot(lose);
+		info.text = "玩家" + winner + "获得胜利！";
+		yield return new WaitForSeconds(3f);
 		for (int i = 0; i < players.Length; i++) {
 			List<Card> c = players[i].removeAll();
 			if (c != null && c.Count > 0) {
@@ -198,8 +379,18 @@ public class DaVinci : MonoBehaviour {
 				}
 			}
 		}
+		gameStarted = false;
 		yield return new WaitForSeconds(2f);
 		Application.LoadLevel(Application.loadedLevel);
+	}
+
+	public void play(bool isPivot){
+		if (isPivot) sc.PlayOneShot(pivot);
+		else sc.PlayOneShot(draw);
+	}
+
+	void flush(bool visible) {
+		players[0].flush(visible);
 	}
 
 	public List<int> getKnownNumbers(bool isWhite, int me) {
@@ -210,8 +401,134 @@ public class DaVinci : MonoBehaviour {
 		return known;
 	}
 
+	public static bool getPlaying() {
+		return playing;
+	}
+
+	public bool isTempDrawed() {
+		return tempDrawed || (pool[0].Count()==0 && pool[1].Count()==0);
+	}
+
 	public static void setKeyCard(Card keyCard) {
 		keyCard.select();
 		DaVinci.keyCard = keyCard;
+	}
+
+	IEnumerator gameOver(bool isUnexpected) {
+		sc.PlayOneShot(lose);
+		if (isUnexpected) DaVinci.info.text = "游戏结束(与服务器断开连接)";
+		else DaVinci.info.text = "游戏结束！";
+		for (int i = 0; i < players.Length; i++) {
+			List<Card> c = players[i].removeAll();
+			if (c != null && c.Count > 0) {
+				foreach (Card t in c) {
+					if (t.color) pool[0].add(t);
+					else pool[1].add(t);
+				}
+			}
+		}
+		gameStarted = false;
+		yield return new WaitForSeconds(5f);
+		Application.LoadLevel(Application.loadedLevel);
+	}
+
+	public void RemoveFromEnv(int c, int v) {
+		networkView.RPC("RRemove", RPCMode.All, num, c, v);
+		networkView.RPC("setText", RPCMode.All, "玩家"+current+"抽取了一张"+(c==0?"白牌":"黑牌"));
+		tempDrawed = true;
+	}
+	public void setTextToAll(string text) {
+		networkView.RPC("setText", RPCMode.All, text);
+	}
+	[RPC]
+	void endGuess(bool succeeded) {
+		if (current == num) players[0].insertTemp(!succeeded);
+	}
+	[RPC]
+	void RRemoveTemp() {
+		Card tc;
+		if (current == num) tc = players[0].removeTemp();
+		else { tc = cTemp; cTemp = null; }
+		if (tc == null) return;
+		if (tc.getColor())
+			pool[0].add(tc);
+		else 
+			pool[1].add(tc);
+		playing = false;
+	}
+	/*
+	 * Only invoke this on server.
+	 *
+	[RPC]
+	void REffect(bool succeeded, bool keepGuessing) {
+		networkView.RPC("RRestore", RPCMode.All);
+		if (succeeded && keepGuessing) {
+			if (current == 0)
+				RRemoveTemp();
+			else
+				networkView.RPC("RRemoveTemp", RPCMode.Others);
+		} else {
+			if (current == 0)
+				endGuess(succeeded);
+			else
+				networkView.RPC("endGuess", RPCMode.Others, succeeded);
+		}
+	}/**/
+	[RPC]
+	public void deselectAll() {
+		for (int i = 0; i < players.Length; i++)
+			players[i].deselectAll();
+	}
+	[RPC]
+	void setText(string text) {
+		info.text = text;
+	}
+	[RPC]
+	void RDraw(int num, int c, int v) {
+		Card cd = pool[c].remove(v);
+		if (this.num == num) {
+			players[0].add(cd);
+		}
+	}
+	[RPC]
+	void RRestore() {
+		tempDrawed = false;
+	}
+	[RPC]
+	void RRemove(int num, int c, int v) {
+		Card cd = pool[c].remove(v);
+		if (this.num == num) {
+			players[0].draw(cd);
+		} else cTemp = cd;
+		tempDrawed = true;
+	}
+	[RPC]
+	void StartGame() {
+		gameStarted = true;
+		pool[0].flush();
+		pool[1].flush();
+		DaVinci.info.text = "游戏开始！";
+		StartCoroutine(Sensor());
+	}
+	[RPC]
+	void ClientInit(int num) {
+		this.num = num;
+		tName.text = "玩家" + num;
+	}
+	[RPC]
+	void PlayersCnt(int cnt) {
+		this.cnt = cnt;
+	}
+	[RPC]
+	void CurrentTurn(int current) {
+		int c = this.current;
+		this.current = current;
+		tempDrawed = false;
+		if (c == num) { playing = false; info.text = "轮到玩家" + current + "猜牌"; }
+		if (current != num) info.text = "等待玩家" + current + "猜牌";
+	}
+	[RPC]
+	public void PlayerOut(int o) {
+		if (!op.Contains(o)) op.Add(o);
 	}
 }
