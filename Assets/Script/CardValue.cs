@@ -11,8 +11,8 @@ public class CardValue : MonoBehaviour {
 	// Use this for initialization
 	void Start () {
 		parent = transform.parent.gameObject.GetComponent<Card>();
-		vc = renderer.material.color;
-		pc = parent.renderer.material.color;
+		vc = GetComponent<Renderer>().material.color;
+		pc = parent.GetComponent<Renderer>().material.color;
 		v = new Vector3(transform.position.x, 
 		                transform.position.y,  parent.transform.position.z - 0.5f);
 		sr = parent.GetComponent<SpriteRenderer>();
@@ -42,19 +42,19 @@ public class CardValue : MonoBehaviour {
 
 	void setTranslucent() {
 		vc.a = 0.9f;
-		renderer.material.color = vc;
+		GetComponent<Renderer>().material.color = vc;
 		pc.a = 0.6f;
-		parent.renderer.material.color = pc;
+		parent.GetComponent<Renderer>().material.color = pc;
 	}
 
 	void setVisible(bool visible) {
 		if (visible) {
 			vc.a = 1f;
-			renderer.material.color = vc;
+			GetComponent<Renderer>().material.color = vc;
 			sr.sprite = parent.color?DaVinci.WH:DaVinci.BH;
 		} else {
 			vc.a = 0f;
-			renderer.material.color = vc;
+			GetComponent<Renderer>().material.color = vc;
 			sr.sprite = parent.color?DaVinci.WT:DaVinci.BT;
 		}
 	}

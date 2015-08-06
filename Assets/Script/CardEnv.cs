@@ -24,18 +24,10 @@ public class CardEnv : MonoBehaviour {
 	public IEnumerator MouseEvent() {
 		if (game.isTempDrawed() && !DaVinci.getPlaying()) {
 			game.play(true);
-			if (isWhite) {
-				if (DaVinci.keyCard != null){
-					bool result = game.judge(true);
-					yield return new WaitForSeconds(1);
-					if (!result) game.turn();
-				}
-			} else {
-				if (DaVinci.keyCard != null) {
-					game.judge(false);
-					yield return new WaitForSeconds(1);
-					game.turn();
-				}
+			if (DaVinci.keyCard != null){
+				bool result = game.judge(isWhite);
+				yield return new WaitForSeconds(1);
+				if (!result || !isWhite) game.turn();
 			}
 		} else {
 			game.play(false);

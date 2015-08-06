@@ -27,19 +27,19 @@ public class CardValueS : MonoBehaviour {
 	}
 
 	void setTranslucent() {
-		Color c = renderer.material.color;
-		renderer.material.color = new Color(c.r, c.g, c.b, 0.9f);
-		c = parent.renderer.material.color;
-		parent.renderer.material.color = new Color(c.r, c.g, c.b, 0.6f);
+		Color c = GetComponent<Renderer>().material.color;
+		GetComponent<Renderer>().material.color = new Color(c.r, c.g, c.b, 0.9f);
+		c = parent.GetComponent<Renderer>().material.color;
+		parent.GetComponent<Renderer>().material.color = new Color(c.r, c.g, c.b, 0.6f);
 	}
 
 	void setVisible(bool visible) {
-		Color vc = renderer.material.color, pc = parent.renderer.material.color;
+		Color vc = GetComponent<Renderer>().material.color, pc = parent.GetComponent<Renderer>().material.color;
 		if (visible) {
-			renderer.material.color = new Color(vc.r, vc.g, vc.b, 1f);
-			parent.renderer.material.color = new Color(pc.r, pc.g, pc.b, 1f);
+			GetComponent<Renderer>().material.color = new Color(vc.r, vc.g, vc.b, 1f);
+			parent.GetComponent<Renderer>().material.color = new Color(pc.r, pc.g, pc.b, 1f);
 		} else {
-			renderer.material.color = new Color(vc.r, vc.g, vc.b, 0f);
+			GetComponent<Renderer>().material.color = new Color(vc.r, vc.g, vc.b, 0f);
 		}
 	}
 }

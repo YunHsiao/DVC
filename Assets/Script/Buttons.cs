@@ -32,10 +32,10 @@ public class Buttons : MonoBehaviour {
 
 	IEnumerator ColorLerp() {
 		yield return new WaitForSeconds(2f);
-		while (buttons[3].renderer.material.color.a.ToString("0.00") != c[3].a.ToString("0.00")) {
+		while (buttons[3].GetComponent<Renderer>().material.color.a.ToString("0.00") != c[3].a.ToString("0.00")) {
 			for (int i = 0; i < buttons.Length; i++) {
 				c[i].a += 0.01f;
-				buttons[i].renderer.material.color = c[i];
+				buttons[i].GetComponent<Renderer>().material.color = c[i];
 			}
 		}
 	}
@@ -45,7 +45,6 @@ public class Buttons : MonoBehaviour {
 		if (Input.GetMouseButton(0)) {
 			col = Physics2D.OverlapPointAll(Camera.main.ScreenToWorldPoint(Input.mousePosition));
 			if(col.Length != 0) {
-				sc.PlayOneShot(pivot);
 				if(col[0].name == "btn_single") {
 					sr[0].sprite = pressed[0];
 				} else if (col[0].name == "btn_multi") {
@@ -68,6 +67,8 @@ public class Buttons : MonoBehaviour {
 					Application.LoadLevel(2);
 				} else if (col[0].name == "btn_exit") {
 					Application.Quit();
+				} else if (col[0].name == "logo") {
+					Application.LoadLevel(3);
 				}
 			}
 		}

@@ -172,6 +172,10 @@ public class Card : MonoBehaviour {
 
 class CardComparer : IComparer<Card> {
 	public int Compare(Card x, Card y) {
-		return x.value - y.value;
+		int a = x.value, b = y.value;
+		if (a > b) return 1;
+		if (a < b) return -1;
+		if (x.color) return 1;
+		return -1;
 	}
 }

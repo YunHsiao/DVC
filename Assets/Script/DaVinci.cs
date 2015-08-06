@@ -101,10 +101,11 @@ public class DaVinci : MonoBehaviour {
 		DaVinci.info.text = "发牌...";
 		if (Network.peerType == NetworkPeerType.Server) {
 			for (int j = 0; j <= Network.connections.Length; j++) {
-				for (int i = 0; i < 4; i++) {
+				int t = cnt<4 ? 4:3;
+				for (int i = 0; i < t; i++) {
 					yield return new WaitForSeconds(0.03f);				
-					int c = Random.Range(0,2)%2==0?0:1, v = pool[c].getRandomNum();
-					networkView.RPC("RDraw", RPCMode.All, j, c, v);
+					int c = Random.Range(0,2)%2, v = pool[c].getRandomNum();
+					GetComponent<NetworkView>().RPC("RDraw", RPCMode.All, j, c, v);
 				}
 			}
 		} else {
@@ -115,7 +116,7 @@ public class DaVinci : MonoBehaviour {
 		players[0].sort();
 		yield return new WaitForSeconds(1f);
 		if (Network.peerType == NetworkPeerType.Server) 
-			networkView.RPC("CurrentTurn", RPCMode.All, 0);
+			GetComponent<NetworkView>().RPC("CurrentTurn", RPCMode.All, 0);
 		while (isPlaying()) {
 			if (current == num) {
 				if (pool[0].Count()==0 && pool[1].Count()==0) 
@@ -172,7 +173,8 @@ public class DaVinci : MonoBehaviour {
 	}
 
 	public void turn() {
-		networkView.RPC("CurrentTurn", RPCMode.All, current>=cnt-1?0:current+1);
+		nextTurn();
+		//GetComponent<NetworkView>().RPC("CurrentTurn", RPCMode.All, (current+1)%cnt);
 	}
 	
 	// Update is called once per frame
@@ -240,7 +242,7 @@ public class DaVinci : MonoBehaviour {
 				if(col.Length > 0) {
 					bool isEnv = col[0].gameObject.name.Contains("pivot");
 					if (isEnv && Network.connections.Length > 0) {
-						networkView.RPC("StartGame", RPCMode.All);
+						GetComponent<NetworkView>().RPC("StartGame", RPCMode.All);
 						yield break;
 					}
 				}
@@ -263,8 +265,8 @@ public class DaVinci : MonoBehaviour {
 	}
 
 	void OnPlayerConnected(NetworkPlayer p) {
-		networkView.RPC("ClientInit", p, Network.connections.Length);
-		networkView.RPC("PlayersCnt", RPCMode.All, Network.connections.Length+1);
+		GetComponent<NetworkView>().RPC("ClientInit", p, Network.connections.Length);
+		GetComponent<NetworkView>().RPC("PlayersCnt", RPCMode.All, Network.connections.Length+1);
 	}
 
 	void OnDisconnectedFromServer(NetworkDisconnection info) {
@@ -272,7 +274,7 @@ public class DaVinci : MonoBehaviour {
 	}
 
 	void OnPlayerDisconnected(NetworkPlayer p) {
-		networkView.RPC("PlayersCnt", RPCMode.All, Network.connections.Length+1);
+		GetComponent<NetworkView>().RPC("PlayersCnt", RPCMode.All, Network.connections.Length+1);
 	}
 		
 	NetworkConnectionError connect(string ip) {
@@ -303,19 +305,16 @@ public class DaVinci : MonoBehaviour {
 	void sendLength() {
 		/*foreach (NetworkPlayer p in Network.connections) 
 			networkView.RPC("ClientInit", p, Network.connections.Length);/**/
-		networkView.RPC("PlayersCnt", RPCMode.All, Network.connections.Length+1);
+		GetComponent<NetworkView>().RPC("PlayersCnt", RPCMode.All, Network.connections.Length+1);
 	}
 
 	void nextTurn() {
-		int t = current+1, flag = 0;
-		while (flag == 0) {
-			if (t >= 0 && t <= Network.connections.Length) {
-				if (!op.Contains(current+1)) {
-					networkView.RPC("CurrentTurn", RPCMode.All, t);
-					flag = 1;
-				}
-				else t++;
-			} else t = 0;
+		int t = current;
+		while (true) {
+			t = (t+1)%cnt;
+			if (op.Contains(t)) continue;
+			GetComponent<NetworkView>().RPC("CurrentTurn", RPCMode.All, t);
+			break;
 		}
 	}
 	
@@ -325,7 +324,7 @@ public class DaVinci : MonoBehaviour {
 
 
 	public void checkInGame() {
-		if (!inGame(0)) networkView.RPC("PlayerOut", RPCMode.All, num);
+		if (!inGame(0)) GetComponent<NetworkView>().RPC("PlayerOut", RPCMode.All, num);
 	}
 
 	public bool isPlaying() {
@@ -335,7 +334,7 @@ public class DaVinci : MonoBehaviour {
 	public int getWinner() {
 		if (isPlaying()) return -1;	// Not Over Yet
 		for (int i = 0; i < cnt; i++) if (!op.Contains(i)) return i;
-		return -2; // Game Overload Error
+		return -2; // Wtf: No winner?!
 	}
 
 	public void guessSucceed() {
@@ -351,16 +350,16 @@ public class DaVinci : MonoBehaviour {
 	}
 
 	public bool judge(bool keepGuessing) {
-		networkView.RPC("deselectAll", RPCMode.All);
+		GetComponent<NetworkView>().RPC("deselectAll", RPCMode.All);
 		bool correct = keyCard.correct();
-		networkView.RPC("setText", RPCMode.All, "玩家" + current + "猜测错误");
+		GetComponent<NetworkView>().RPC("setText", RPCMode.All, "玩家" + current + "猜测错误");
 		if (correct) {
-			networkView.RPC("setText", RPCMode.All, "玩家" + current + "猜测正确");
+			GetComponent<NetworkView>().RPC("setText", RPCMode.All, "玩家" + current + "猜测正确");
 			guessSucceed();
 		}
-		networkView.RPC("RRestore", RPCMode.All);
-		if (correct && keepGuessing) networkView.RPC("RRemoveTemp", RPCMode.Others);
-		else networkView.RPC("endGuess", RPCMode.Others, correct);
+		GetComponent<NetworkView>().RPC("RRestore", RPCMode.All);
+		if (correct && keepGuessing) GetComponent<NetworkView>().RPC("RRemoveTemp", RPCMode.Others);
+		else GetComponent<NetworkView>().RPC("endGuess", RPCMode.Others, correct);
 		return correct;
 	}
 
@@ -433,12 +432,12 @@ public class DaVinci : MonoBehaviour {
 	}
 
 	public void RemoveFromEnv(int c, int v) {
-		networkView.RPC("RRemove", RPCMode.All, num, c, v);
-		networkView.RPC("setText", RPCMode.All, "玩家"+current+"抽取了一张"+(c==0?"白牌":"黑牌"));
+		GetComponent<NetworkView>().RPC("RRemove", RPCMode.All, num, c, v);
+		GetComponent<NetworkView>().RPC("setText", RPCMode.All, "玩家"+current+"抽取了一张"+(c==0?"白牌":"黑牌"));
 		tempDrawed = true;
 	}
 	public void setTextToAll(string text) {
-		networkView.RPC("setText", RPCMode.All, text);
+		GetComponent<NetworkView>().RPC("setText", RPCMode.All, text);
 	}
 	[RPC]
 	void endGuess(bool succeeded) {
