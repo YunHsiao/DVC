@@ -36,9 +36,6 @@ Desktop.ini
 # Recycle Bin used on file shares
 $RECYCLE.BIN/
 
-# Compile Cache
-$Library/
-
 # Windows Installer files
 *.cab
 *.msi
