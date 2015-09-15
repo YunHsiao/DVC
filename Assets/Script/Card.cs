@@ -1,21 +1,23 @@
 ﻿using UnityEngine;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 
-public class Card : MonoBehaviour {
+public class Card : MonoBehaviour, IComparable<Card> {
 
 	public int value;
 	public bool color;
 	bool visible, isDraging; //, selected;
 	int i;
 	float speed;//, tx = 0f, ty = 0f, tsc = 0f;
+
 	CardValue cv;
-	Renderer rdr;
 	Vector3 po, sc;
 	public float x, y, z, scale = 0f;
 	public float default_y = 0f, default_x = 0f, defalut_z = 0f;
 	public CardPool player;
 	public int position = 0;	//Position in Player's Hand
+	static float tex_x = 0;
 
 	// Use this for initialization
 	void Start () {
@@ -27,7 +29,14 @@ public class Card : MonoBehaviour {
 		po = new Vector3(0, 0, transform.position.z);
 		sc = new Vector3(0, 0, 1);
 		cv = GetComponentInChildren<CardValue>();
-		rdr = GetComponent<Renderer>();
+		
+		Renderer rdr = GetComponent<Renderer>();
+		if (tex_x == 0) {
+			Vector3 tsc = transform.localScale;
+			transform.localScale = new Vector3(1, 0, 1);
+			tex_x = rdr.bounds.size.x;
+			transform.localScale = tsc;
+		}
 	}
 	
 	// Update is called once per frame
@@ -110,8 +119,7 @@ public class Card : MonoBehaviour {
 	
 	public void SetPosition() {
 		float num_cards = player.getSize();
-		float spacing = Mathf.Min(rdr.bounds.size.x 
-		    	 / transform.localScale.x * player.transform.localScale.x * 0.95f,
+		float spacing = Mathf.Min(tex_x * player.transform.localScale.x * 0.95f,
 		    player.max_range / num_cards);
 		//Debug.Log(spacing + " " + name);
 		this.x = default_x + position * spacing - (num_cards - 1) * spacing / 2.0f;
@@ -119,8 +127,7 @@ public class Card : MonoBehaviour {
 
 	public void moveForTemp() {
 		float num_cards = player.getSize()+2;
-		float spacing = Mathf.Min(rdr.bounds.size.x 
-				/ transform.localScale.x * player.transform.localScale.x * 0.95f,
+		float spacing = Mathf.Min(tex_x * player.transform.localScale.x * 0.95f,
 			player.max_range / num_cards);
 		this.x = default_x + position * spacing - (num_cards - 1) * spacing / 2.0f;
 	}
@@ -168,14 +175,14 @@ public class Card : MonoBehaviour {
 		if (!(c.getColor() ^ color) && c.getValue() == value) return true;
 		return false;
 	}
-}
 
-class CardComparer : IComparer<Card> {
-	public int Compare(Card x, Card y) {
-		int a = x.value, b = y.value;
-		if (a > b) return 1;
-		if (a < b) return -1;
-		if (x.color) return 1;
-		return -1;
+	public int CompareTo(Card other) {
+		int r = this.getValue().CompareTo(other.getValue());
+		if (r != 0) return r;
+		if (this.color ^ other.color) {
+			if (this.color) return 1;
+			return -1;
+		}
+		return 0;
 	}
 }

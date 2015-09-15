@@ -26,14 +26,14 @@ public class CardEnvS : MonoBehaviour {
 		if (player.hasTemp() || (Count()==0 && aPool.Count()==0)) {
 			game.play(true);
 			if (isWhite) {
-				if (DaVinciS.keyCard != null){
+				if (DaVinciS.keyCard != null && !DaVinciS.keyCard.getVisible()) {
 					bool result = game.judge(player, true);
 					yield return new WaitForSeconds(1);
 					if (!result) game.turn();
 					else DaVinciS.info.text = "轮到玩家猜牌";
 				}
 			} else {
-				if (DaVinciS.keyCard != null) {
+				if (DaVinciS.keyCard != null && !DaVinciS.keyCard.getVisible()) {
 					game.judge(player, false);
 					yield return new WaitForSeconds(1);
 					game.turn();

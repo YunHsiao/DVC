@@ -6,14 +6,12 @@ public class CardPool : MonoBehaviour {
 
 	List<Card> cards;
 	Card temp;
-	CardComparer comparer;
 	public float max_range;
 	public bool visible;
 
 	// Use this for initialization
 	void Start () {
 		cards = new List<Card>();
-		comparer = new CardComparer();
 		visible = true;
 	}
 	
@@ -42,7 +40,7 @@ public class CardPool : MonoBehaviour {
 	}
 
 	public void sort() {
-		cards.Sort(comparer);
+		cards.Sort();
 		for (int i = 0; i < cards.Count; i++) {
 			cards[i].position = i;
 			//if (transform.position.x > 0) cards[i].SetLayer(i);

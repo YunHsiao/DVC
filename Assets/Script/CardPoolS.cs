@@ -6,7 +6,6 @@ public class CardPoolS : MonoBehaviour {
 
 	List<CardS> cards;
 	CardS temp;
-	CardComparerS comparer;
 	public float max_range;
 	public DaVinciS game;
 	int cntV = 4;
@@ -14,7 +13,6 @@ public class CardPoolS : MonoBehaviour {
 	// Use this for initialization
 	void Start () {
 		cards = new List<CardS>();
-		comparer = new CardComparerS();
 	}
 	
 	// Update is called once per frame
@@ -43,7 +41,7 @@ public class CardPoolS : MonoBehaviour {
 	}
 
 	public void sort() {
-		cards.Sort(comparer);
+		cards.Sort();
 		for (int i = 0; i < cards.Count; i++) {
 			cards[i].position = i;
 			//if (transform.position.x > 0) cards[i].SetLayer(i);

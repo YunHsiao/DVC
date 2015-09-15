@@ -24,7 +24,7 @@ public class CardEnv : MonoBehaviour {
 	public IEnumerator MouseEvent() {
 		if (game.isTempDrawed() && !DaVinci.getPlaying()) {
 			game.play(true);
-			if (DaVinci.keyCard != null){
+			if (DaVinci.keyCard != null && !DaVinci.keyCard.getVisible()){
 				bool result = game.judge(isWhite);
 				yield return new WaitForSeconds(1);
 				if (!result || !isWhite) game.turn();

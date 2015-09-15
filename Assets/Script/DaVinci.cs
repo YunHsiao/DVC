@@ -21,7 +21,7 @@ public class DaVinci : MonoBehaviour {
 	static bool playing, gameStarted;
 	List<int> op;
 	Card cTemp;
-	int num, cnt, current;
+	static int num, cnt, current;
 
 	// Use this for initialization
 	void Start () {
@@ -485,7 +485,7 @@ public class DaVinci : MonoBehaviour {
 	[RPC]
 	void RDraw(int num, int c, int v) {
 		Card cd = pool[c].remove(v);
-		if (this.num == num) {
+		if (DaVinci.num == num) {
 			players[0].add(cd);
 		}
 	}
@@ -496,7 +496,7 @@ public class DaVinci : MonoBehaviour {
 	[RPC]
 	void RRemove(int num, int c, int v) {
 		Card cd = pool[c].remove(v);
-		if (this.num == num) {
+		if (DaVinci.num == num) {
 			players[0].draw(cd);
 		} else cTemp = cd;
 		tempDrawed = true;
@@ -511,17 +511,17 @@ public class DaVinci : MonoBehaviour {
 	}
 	[RPC]
 	void ClientInit(int num) {
-		this.num = num;
+		DaVinci.num = num;
 		tName.text = "玩家" + num;
 	}
 	[RPC]
 	void PlayersCnt(int cnt) {
-		this.cnt = cnt;
+		DaVinci.cnt = cnt;
 	}
 	[RPC]
 	void CurrentTurn(int current) {
-		int c = this.current;
-		this.current = current;
+		int c = DaVinci.current;
+		DaVinci.current = current;
 		tempDrawed = false;
 		if (c == num) { playing = false; info.text = "轮到玩家" + current + "猜牌"; }
 		if (current != num) info.text = "等待玩家" + current + "猜牌";
